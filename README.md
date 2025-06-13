@@ -169,3 +169,149 @@ O Docker facilita o desenvolvimento e o deploy de aplicações.
 Consulte a [documentação oficial do Docker](https://docs.docker.com/)
 
 **Happy Dockering!** 🐋
+
+# Introdução ao Amazon ECS
+
+Se você está começando com a AWS e quer aprender a executar aplicações em contêineres, o Amazon Elastic Container Service (ECS) é um ótimo serviço para começar. Neste guia, vamos explicar de forma simples:
+
+✅ O que é o ECS e como ele funciona  
+✅ Como armazenar imagens de contêineres no Amazon ECR  
+✅ As três camadas do ECS: Cluster, Serviço e Tarefa  
+✅ Como fazer deploy de uma aplicação com Load Balancer  
+✅ Automatizar deploys usando GitHub Actions  
+
+Vamos lá!
+
+---
+
+## 1. O que é o Amazon ECS?
+
+O Amazon ECS (Elastic Container Service) é um serviço gerenciado da AWS para executar aplicações em contêineres usando o Docker. Ele facilita a implantação, o gerenciamento e a escalabilidade de aplicações conteinerizadas sem precisar configurar servidores manualmente.
+
+### Por que usar o ECS?
+✔ Escalabilidade automática: Ajusta o número de contêineres conforme a demanda.  
+✔ Integração com a AWS: Funciona bem com outros serviços como Load Balancer, RDS, CloudWatch, etc.  
+✔ Custo eficiente: Você paga apenas pelos recursos que usar.
+
+---
+
+## 2. O Amazon ECR: Repositório de Imagens de Contêiner
+
+Antes de executar um contêiner no ECS, você precisa armazenar sua imagem Docker em um lugar seguro e acessível. É aí que entra o Amazon ECR (Elastic Container Registry).
+
+### Como funciona?
+1. Você cria um repositório no ECR.  
+2. Constrói sua imagem Docker localmente.  
+3. Faz o upload (push) da imagem para o ECR.  
+4. O ECS puxa (pull) essa imagem quando for executar sua aplicação.
+
+### Comandos básicos para usar o ECR
+```bash
+# Autenticar no ECR  
+aws ecr get-login-password | docker login --username AWS --password-stdin SUA_CONTA.dkr.ecr.REGIAO.amazonaws.com  
+
+# Criar uma imagem Docker  
+docker build -t minha-aplicacao .  
+
+# Taggear a imagem para o ECR  
+docker tag minha-aplicacao:latest SUA_CONTA.dkr.ecr.REGIAO.amazonaws.com/meu-repositorio:latest  
+
+# Fazer upload da imagem  
+docker push SUA_CONTA.dkr.ecr.REGIAO.amazonaws.com/meu-repositorio:latest  
+```
+
+---
+
+## 3. As Camadas do ECS: Cluster, Serviço e Tarefa
+
+O ECS é organizado em três camadas principais:
+
+### 🔹 Cluster
+Um cluster é um grupo de servidores (máquinas virtuais ou instâncias EC2) onde seus contêineres serão executados. Você pode ter vários clusters para diferentes ambientes (ex: produção, teste).
+
+### 🔹 Tarefa (Task)
+Uma tarefa é a menor unidade do ECS. Ela define:
+- Qual imagem Docker será executada  
+- Quanta CPU e memória o contêiner precisa  
+- Variáveis de ambiente e portas expostas  
+
+### 🔹 Serviço (Service)
+Um serviço mantém sua aplicação rodando continuamente. Ele:
+- Gerencia quantas tarefas devem estar em execução  
+- Lida com falhas (reinicia contêineres que quebram)  
+- Pode ser integrado a um Load Balancer para distribuir tráfego  
+
+---
+
+## 4. Fazendo Deploy de uma Aplicação com Load Balancer
+
+Vamos ver um exemplo prático de como implantar uma aplicação web no ECS com um Application Load Balancer (ALB) para balancear o tráfego.
+
+### Passos básicos:
+1. Criar um cluster ECS (pode ser com instâncias EC2 ou serverless com Fargate).  
+2. Definir uma tarefa (Task Definition) especificando a imagem do ECR, CPU, memória e portas.  
+3. Criar um serviço (Service) que execute essa tarefa e se conecte a um ALB.  
+4. Configurar o Load Balancer para rotear tráfego para os contêineres.  
+
+Pronto! Sua aplicação estará no ar, escalável e com alta disponibilidade.
+
+---
+
+## 5. Automatizando Deploys com GitHub Actions
+
+Para evitar fazer tudo manualmente, você pode automatizar o deploy usando GitHub Actions.
+
+### Exemplo de fluxo:
+1. Sempre que um código novo for enviado (push) para o GitHub, um workflow é acionado.  
+2. O workflow faz o build da imagem Docker e envia para o ECR.  
+3. Atualiza a definição de tarefa (Task Definition) no ECS.  
+4. Reinicia o serviço no ECS para aplicar as mudanças.  
+
+### Exemplo de arquivo `.github/workflows/deploy.yml`:
+```yaml
+name: Deploy to ECS  
+
+on:  
+  push:  
+    branches: [ main ]  
+
+jobs:  
+  deploy:  
+    runs-on: ubuntu-latest  
+    steps:  
+      - name: Checkout code  
+        uses: actions/checkout@v2  
+
+      - name: Login to Amazon ECR  
+        id: login-ecr  
+        uses: aws-actions/amazon-ecr-login@v1  
+
+      - name: Build and push Docker image  
+        run: |  
+          docker build -t minha-aplicacao .  
+          docker tag minha-aplicacao:latest ${{ secrets.ECR_REPOSITORY }}:latest  
+          docker push ${{ secrets.ECR_REPOSITORY }}:latest  
+
+      - name: Deploy to ECS  
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1  
+        with:  
+          task-definition: minha-task-definition.json  
+          service: meu-servico-ecs  
+          cluster: meu-cluster  
+          wait-for-service-stability: true  
+```
+
+---
+
+## Conclusão
+
+Neste guia, você aprendeu:
+✔ O que é o Amazon ECS e como ele gerencia contêineres.  
+✔ Como armazenar imagens no ECR.  
+✔ As camadas do ECS: Cluster, Serviço e Tarefa.  
+✔ Como implantar uma aplicação com Load Balancer.  
+✔ Como automatizar deploys com GitHub Actions.  
+
+Agora você está pronto para começar a usar o ECS na AWS! 🚀
+
+> Quer se aprofundar? Consulte a [documentação oficial da AWS](https://docs.aws.amazon.com/ecs).
